@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pequito Lovers - Panel Foto Directa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pequito-gradient { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .card-img { width: 100%; height: 160px; object-fit: cover; border-radius: 25px; background: #f1f5f9; }
+    </style>
+</head>
+<body class="bg-slate-50 pb-44 font-sans">
+    
+    <header class="pequito-gradient p-8 rounded-b-[50px] shadow-xl text-white text-center relative">
+        <button onclick="verificarAcceso()" class="absolute top-6 right-6 opacity-20 hover:opacity-100 transition-opacity">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+        </button>
+        <h1 class="text-4xl font-black italic uppercase italic">PEQUITO LOVERS</h1>
+        <p class="text-[12px] font-bold uppercase opacity-90">LA CASA DEL SNACK MIX 🍪</p>
+    </header>
+
+    <main class="px-6 mt-10">
+        <div id="grid-productos" class="grid grid-cols-2 gap-6"></div>
+    </main>
+
+    <div id="modalAdmin" class="modal px-4">
+        <div class="bg-white w-full max-w-md rounded-[45px] p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-black uppercase italic text-slate-800">Panel Admin</h2>
+                <button onclick="cerrarModal()" class="text-slate-400 font-bold">Cerrar</button>
+            </div>
+            
+            <div class="space-y-4 bg-slate-50 p-6 rounded-[30px] border border-slate-100">
+                <input id="inNombre" placeholder="Nombre del Snack" class="w-full p-4 bg-white rounded-2xl outline-none text-sm font-bold shadow-sm uppercase">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <input id="inCaja" type="number" placeholder="S/ Caja" class="p-4 bg-white rounded-2xl outline-none text-sm shadow-sm">
+                    <input id="inTira" type="number" placeholder="S/ Tira" class="p-4 bg-white rounded-2xl outline-none text-sm shadow-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase ml-2">Imagen del Producto</label>
+                    <div class="flex flex-col gap-3">
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="procesarFoto(event)">
+                        <button onclick="document.getElementById('fileInput').click()" class="w-full bg-white border-2 border-dashed border-orange-200 text-orange-600 py-4 rounded-2xl text-xs font-bold uppercase flex items-center justify-center gap-2">
+                            📸 Tomar Foto o Subir
+                        </button>
+                        <div id="previewContainer" class="hidden">
+                            <img id="imgPreview" class="w-full h-32 object-cover rounded-2xl border-2 border-orange-500">
+                            <p class="text-[8px] text-green-600 font-bold mt-1 uppercase text-center">¡Imagen Cargada!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="guardarProducto()" class="w-full pequito-gradient text-white py-5 rounded-2xl font-black uppercase shadow-xl">Guardar en el Catálogo</button>
+            </div>
+            <div id="listaEdicion" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <div id="cart-float" class="hidden fixed bottom-8 left-6 right-6 bg-white p-6 rounded-[45px] shadow-2xl z-50 flex justify-between items-center border border-orange-100">
+        <div class="text-left">
+            <p id="cart-total" class="text-3xl font-black text-slate-800 italic">S/ 0.00</p>
+        </div>
+        <button onclick="finalizarPedido()" class="pequito-gradient text-white px-10 py-5 rounded-[30px] font-black uppercase text-xs">Pedir ahora 📲</button>
+    </div>
+
+    <script>
+        const PIN_ACCESO = "2026";
+        let productos = JSON.parse(localStorage.getItem('pequito_db')) || [];
+        let carrito = [];
+        let currentImgBase64 = "";
+
+        function verificarAcceso() {
+            if (prompt("PIN de Admin:") === PIN_ACCESO) {
+                document.getElementById('modalAdmin').style.display = 'flex';
+                renderListaEdicion();
+            }
+        }
+
+        // FUNCIÓN CLAVE: Convierte la foto del celular en texto para guardarla
+        function procesarFoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImgBase64 = e.target.result;
+                    document.getElementById('imgPreview').src = currentImgBase64;
+                    document.getElementById('previewContainer').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function guardarProducto() {
+            const n = document.getElementById('inNombre').value.toUpperCase();
+            const pC = parseFloat(document.getElementById('inCaja').value) || 0;
+            const pT = parseFloat(document.getElementById('inTira').value) || 0;
+            
+            if(!n || !currentImgBase64) return alert("Ponle nombre y toma una foto.");
+
+            productos.push({ n, pC, pT, img: currentImgBase64 });
+            localStorage.setItem('pequito_db', JSON.stringify(productos));
+            
+            // Limpiar
+            document.getElementById('inNombre').value = '';
+            document.getElementById('inCaja').value = '';
+            document.getElementById('inTira').value = '';
+            document.getElementById('previewContainer').classList.add('hidden');
+            currentImgBase64 = "";
+            
+            actualizarTodo();
+            alert("¡Producto guardado!");
+        }
+
+        function renderPublico() {
+            const cont = document.getElementById('grid-productos');
+            cont.innerHTML = productos.map((p, i) => `
+                <div class="bg-white rounded-[40px] shadow-sm p-4 border border-slate-100 flex flex-col">
+                    <img src="${p.img}" class="card-img mb-4">
+                    <h4 class="font-black text-slate-800 uppercase text-[10px] mb-2 truncate">${p.n}</h4>
+                    <div class="space-y-1">
+                        ${p.pC > 0 ? `<button onclick="add('${p.n}', ${p.pC})" class="w-full bg-slate-50 py-3 rounded-xl text-[9px] font-black uppercase">Caja S/ ${p.pC}</button>` : ''}
+                        ${p.pT > 0 ? `<button onclick="add('${p.n}', ${p.pT})" class="w-full pequito-gradient text-white py-3 rounded-xl text-[9px] font-black uppercase">Tira S/ ${p.pT}</button>` : ''}
+                    </div>
+                </div>`).join('');
+        }
+
+        function renderListaEdicion() {
+            const cont = document.getElementById('listaEdicion');
+            cont.innerHTML = productos.map((p, i) => `
+                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2">
+                    <span class="text-[9px] font-black uppercase truncate w-32">${p.n}</span>
+                    <button onclick="eliminar(${i})" class="text-red-500 font-bold text-[10px]">BORRAR</button>
+                </div>`).join('');
+        }
+
+        function add(n, p) {
+            carrito.push({ n, p });
+            const total = carrito.reduce((acc, item) => acc + item.p, 0);
+            document.getElementById('cart-float').classList.remove('hidden');
+            document.getElementById('cart-total').innerText = `S/ ${total.toFixed(2)}`;
+        }
+
+        function finalizarPedido() {
+            const nom = prompt("¿Tu nombre?");
+            if(!nom) return;
+            let msg = `🍪 *PEDIDO PEQUITO LOVERS*\n👤 *Cliente:* ${nom.toUpperCase()}\n\n`;
+            carrito.forEach(item => { msg += `✅ *1x* ${item.n} - S/ ${item.p}\n`; });
+            window.open(`https://wa.me/51934633112?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function eliminar(idx) { productos.splice(idx, 1); localStorage.setItem('pequito_db', JSON.stringify(productos)); actualizarTodo(); }
+        function actualizarTodo() { renderPublico(); renderListaEdicion(); }
+        function cerrarModal() { document.getElementById('modalAdmin').style.display = 'none'; }
+        
+        actualizarTodo();
+    </script>
+</body>
+</html>
